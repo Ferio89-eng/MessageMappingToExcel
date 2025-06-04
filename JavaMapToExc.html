@@ -426,7 +426,7 @@
         function getTranslation(key, category = null) {
             const lang = translations[currentLanguage];
             if (category) {
-                return lang[category][key] || key;
+                return lang[category] && lang[category][key] ? lang[category][key] : key;
             }
             return lang[key] || key;
         }
@@ -668,73 +668,91 @@
         }
         
         function exportToExcel() {
+            console.log('exportToExcel called'); // Debug
+            
             if (parsedMappings.length === 0) {
                 alert('Nessun mapping da esportare. Analizza prima un mapping.');
                 return;
             }
             
-            // Prepara i dati per Excel
-            const data = [
-                [getTranslation('number', 'tableHeaders'), getTranslation('target', 'tableHeaders'), getTranslation('source', 'tableHeaders'), getTranslation('transformation', 'tableHeaders')]
-            ];
-            
-            parsedMappings.forEach(mapping => {
-                data.push([
-                    mapping.number,
-                    mapping.target,
-                    formatSource(mapping.source),
-                    getTranslation(mapping.transformation, 'transformations')
-                ]);
-            });
-            
-            // Crea il workbook
-            const wb = XLSX.utils.book_new();
-            const ws = XLSX.utils.aoa_to_sheet(data);
-            
-            // Imposta la larghezza delle colonne
-            ws['!cols'] = [
-                { wch: 5 },   // N.
-                { wch: 60 },  // Campo Target
-                { wch: 40 },  // Campo Source
-                { wch: 80 }   // Funzione
-            ];
-            
-            // Aggiungi il worksheet
-            XLSX.utils.book_append_sheet(wb, ws, `Mapping ${currentMappingName}`);
-            
-            // Crea foglio con note se ci sono trasformazioni complesse
-            const complexTransformations = parsedMappings.filter(m => 
-                m.transformation.includes('iFS') || m.transformation.includes('CopyValue')
-            );
-            
-            if (complexTransformations.length > 0) {
-                const notesData = [
-                    [getTranslation('complexTransformations', 'notes')],
-                    [''],
-                    [getTranslation('step', 'notes'), getTranslation('function', 'notes'), getTranslation('description', 'notes')],
-                    ['1', getTranslation('mapWithDefault', 'notes'), getTranslation('applyDefault', 'notes')],
-                    ['2', getTranslation('formatNumber', 'notes'), getTranslation('format', 'notes')],
-                    ['3', getTranslation('length', 'notes'), getTranslation('calculateLength', 'notes')],
-                    ['4', getTranslation('greater', 'notes'), getTranslation('checkLength', 'notes')],
-                    ['5', getTranslation('substring', 'notes'), getTranslation('truncate', 'notes')],
-                    ['6', getTranslation('iFS', 'notes'), getTranslation('condition', 'notes')],
-                    ['7', getTranslation('CopyValue', 'notes'), getTranslation('copyFinal', 'notes')],
-                    [''],
-                    [getTranslation('complexFields', 'notes') + ':']
+            try {
+                // Prepara i dati per Excel
+                const data = [
+                    [getTranslation('number', 'tableHeaders'), getTranslation('target', 'tableHeaders'), getTranslation('source', 'tableHeaders'), getTranslation('transformation', 'tableHeaders')]
                 ];
                 
-                complexTransformations.forEach(mapping => {
-                    notesData.push([`- ${mapping.target.split('/').pop()}`]);
+                parsedMappings.forEach(mapping => {
+                    data.push([
+                        mapping.number,
+                        mapping.target,
+                        formatSource(mapping.source),
+                        getTranslation(mapping.transformation, 'transformations')
+                    ]);
                 });
                 
-                const wsNotes = XLSX.utils.aoa_to_sheet(notesData);
-                wsNotes['!cols'] = [{ wch: 10 }, { wch: 20 }, { wch: 60 }];
-                XLSX.utils.book_append_sheet(wb, wsNotes, getTranslation('complexTransformations', 'notes'));
+                console.log('Data prepared for Excel:', data); // Debug
+                
+                // Crea il workbook
+                const wb = XLSX.utils.book_new();
+                const ws = XLSX.utils.aoa_to_sheet(data);
+                
+                // Imposta la larghezza delle colonne
+                ws['!cols'] = [
+                    { wch: 5 },   // N.
+                    { wch: 60 },  // Campo Target
+                    { wch: 40 },  // Campo Source
+                    { wch: 80 }   // Funzione
+                ];
+                
+                // Aggiungi il worksheet
+                XLSX.utils.book_append_sheet(wb, ws, `Mapping ${currentMappingName}`);
+                
+                console.log('Workbook created'); // Debug
+                
+                // Crea foglio con note se ci sono trasformazioni complesse
+                const complexTransformations = parsedMappings.filter(m => 
+                    m.transformation.includes('iFS') || m.transformation.includes('CopyValue')
+                );
+                
+                if (complexTransformations.length > 0) {
+                    console.log('Creating notes sheet'); // Debug
+                    
+                    const notesData = [
+                        [getTranslation('complexTransformations', 'notes')],
+                        [''],
+                        [getTranslation('step', 'notes'), getTranslation('function', 'notes'), getTranslation('description', 'notes')],
+                        ['1', getTranslation('mapWithDefault', 'notes'), getTranslation('applyDefault', 'notes')],
+                        ['2', getTranslation('formatNumber', 'notes'), getTranslation('format', 'notes')],
+                        ['3', getTranslation('length', 'notes'), getTranslation('calculateLength', 'notes')],
+                        ['4', getTranslation('greater', 'notes'), getTranslation('checkLength', 'notes')],
+                        ['5', getTranslation('substring', 'notes'), getTranslation('truncate', 'notes')],
+                        ['6', getTranslation('iFS', 'notes'), getTranslation('condition', 'notes')],
+                        ['7', getTranslation('CopyValue', 'notes'), getTranslation('copyFinal', 'notes')],
+                        [''],
+                        [getTranslation('complexFields', 'notes') + ':']
+                    ];
+                    
+                    complexTransformations.forEach(mapping => {
+                        notesData.push([`- ${mapping.target.split('/').pop()}`]);
+                    });
+                    
+                    const wsNotes = XLSX.utils.aoa_to_sheet(notesData);
+                    wsNotes['!cols'] = [{ wch: 10 }, { wch: 20 }, { wch: 60 }];
+                    XLSX.utils.book_append_sheet(wb, wsNotes, getTranslation('complexTransformations', 'notes'));
+                }
+                
+                // Salva il file
+                const filename = `Mapping_SAP074_TRACKWISE_${currentMappingName}_${new Date().toISOString().slice(0,10)}.xlsx`;
+                console.log('Attempting to save file:', filename); // Debug
+                
+                XLSX.writeFile(wb, filename);
+                
+                console.log('File saved successfully'); // Debug
+                
+            } catch (error) {
+                console.error('Error in exportToExcel:', error);
+                alert('Errore durante l\'esportazione: ' + error.message);
             }
-            
-            // Salva il file
-            const filename = `Mapping_SAP074_TRACKWISE_${currentMappingName}_${new Date().toISOString().slice(0,10)}.xlsx`;
-            XLSX.writeFile(wb, filename);
         }
     </script>
 </body>
