@@ -143,6 +143,7 @@
             padding: 30px;
             height: 550px;
             overflow-y: auto;
+            overflow-x: auto;
             -webkit-overflow-scrolling: touch;
             padding-bottom: 40px;
         }
@@ -163,6 +164,10 @@
             padding: 8px;
             text-align: left;
             vertical-align: top;
+            word-wrap: break-word;
+            word-break: break-word;
+            white-space: normal;
+            max-width: 0;
         }
         
         .output-table th {
@@ -349,6 +354,31 @@
                     success: 'Mapping analizzato con successo! Trovati {0} elementi di mapping.',
                     empty: 'Vuoto'
                 },
+                explanations: {
+                    constantValue: 'Assegna valore costante',
+                    directMapping: 'Mapping diretto del campo source',
+                    createField: 'Crea il campo solo se esiste',
+                    createFieldCondition: 'Crea il campo con condizione',
+                    verifyExistence: 'Verifica esistenza del campo',
+                    distributeValue: 'Distribuisci il valore del campo source',
+                    distributeValues: 'Distribuisci il valore del campo source',
+                    onAllTargets: 'su tutti i campi target',
+                    transformDate: 'Trasforma la data nel formato',
+                    useCurrentDate: 'Usa la data corrente nel formato',
+                    useFirstField: 'Usa il primo campo come riferimento',
+                    removeContexts: 'Rimuovi contesti dal campo',
+                    extractSubstring: 'Estrai sottostringa dall\'indice',
+                    forCharacters: 'per',
+                    characters: 'caratteri',
+                    calculateLength: 'Calcola lunghezza del campo',
+                    verifyGreater: 'Verifica se è maggiore di',
+                    conditionWithoutElse: 'Condizione "se" senza "altrimenti"',
+                    ifThenElse: 'Condizione if-then-else per scegliere il valore appropriato',
+                    formatNumber: 'Formatta il numero',
+                    applyDefault: 'Applica valore di default se il campo è vuoto',
+                    customFunctions: 'Trasformazione con funzioni personalizzate',
+                    simpleMapping: 'Mapping semplice'
+                },
                 notes: {
                     complexTransformations: 'Note Trasformazioni',
                     step: 'Passo',
@@ -389,6 +419,31 @@
                 messages: {
                     success: 'Mapping analyzed successfully! Found {0} mapping elements.',
                     empty: 'Empty'
+                },
+                explanations: {
+                    constantValue: 'Assign constant value',
+                    directMapping: 'Direct mapping of source field',
+                    createField: 'Create field only if exists',
+                    createFieldCondition: 'Create field with condition',
+                    verifyExistence: 'Verify field existence',
+                    distributeValue: 'Distribute source field value',
+                    distributeValues: 'Distribute source field values',
+                    onAllTargets: 'on all target fields',
+                    transformDate: 'Transform date to format',
+                    useCurrentDate: 'Use current date in format',
+                    useFirstField: 'Use first field as reference',
+                    removeContexts: 'Remove contexts from field',
+                    extractSubstring: 'Extract substring from index',
+                    forCharacters: 'for',
+                    characters: 'characters',
+                    calculateLength: 'Calculate field length',
+                    verifyGreater: 'Verify if greater than',
+                    conditionWithoutElse: 'Condition "if" without "else"',
+                    ifThenElse: 'If-then-else condition to choose appropriate value',
+                    formatNumber: 'Format number',
+                    applyDefault: 'Apply default value if field is empty',
+                    customFunctions: 'Transformation with custom functions',
+                    simpleMapping: 'Simple mapping'
                 },
                 notes: {
                     complexTransformations: 'Transformation Notes',
@@ -480,91 +535,90 @@
             const mappings = [];
             let counter = 1;
             
-            // Normalizza la stringa
+            // Normalizza la stringa rimuovendo i doppi asterischi
             let normalized = mappingStr.replace(/\*\*/g, '').trim();
             
-            // Debugging: mostra l'input normalizzato
             console.log('Input normalizzato:', normalized);
             
-            // Approccio completamente nuovo: splitta in base ai pattern "/path="
-            // ma gestisci le funzioni complesse correttamente
+            // Nuova logica di parsing: cerca tutti i pattern che iniziano con / e hanno un =
+            // Usa regex per identificare i mapping completi
+            const mappingPattern = /(\/[^=]+?)=([^/]*(?:\/[^=]*)*?)(?=\/[^=]*?=|$)/g;
+            let match;
             
-            let parts = [];
-            let currentPart = '';
-            let parenLevel = 0;
-            let i = 0;
+            // Fallback: se la regex non funziona, usa l'approccio manuale
+            const matches = [];
+            let remainingText = normalized;
             
-            while (i < normalized.length) {
-                let char = normalized[i];
+            // Cerca tutti i mapping che iniziano con / seguito da un =
+            while (remainingText.length > 0) {
+                // Trova il prossimo /...= pattern
+                let startPos = remainingText.indexOf('/');
+                if (startPos === -1) break;
                 
-                if (char === '(') {
-                    parenLevel++;
-                    currentPart += char;
-                } else if (char === ')') {
-                    parenLevel--;
-                    currentPart += char;
-                } else if (char === '/' && parenLevel === 0) {
-                    // Controlla se questo è l'inizio di un nuovo mapping
-                    // Cerca il prossimo '=' per vedere se c'è un mapping qui
-                    let nextEqualPos = normalized.indexOf('=', i);
-                    let nextSlashPos = normalized.indexOf('/', i + 1);
-                    
-                    // Se c'è un '=' prima del prossimo '/', allora questo è un nuovo mapping
-                    if (nextEqualPos !== -1 && (nextSlashPos === -1 || nextEqualPos < nextSlashPos)) {
-                        // Salva la parte precedente se non è vuota
-                        if (currentPart.trim()) {
-                            parts.push(currentPart.trim());
-                        }
-                        currentPart = char;
-                    } else {
-                        currentPart += char;
-                    }
-                } else {
-                    currentPart += char;
-                }
-                
-                i++;
-            }
-            
-            // Aggiungi l'ultima parte
-            if (currentPart.trim()) {
-                parts.push(currentPart.trim());
-            }
-            
-            console.log('Parti trovate:', parts);
-            
-            // Ora processa ogni parte per estrarre target e source
-            for (let part of parts) {
-                if (!part.includes('=')) continue;
-                
-                // Trova il primo '=' che non è dentro parentesi
+                // Trova il corrispondente = che non è dentro parentesi
                 let equalPos = -1;
                 let parenCount = 0;
+                let searchStart = startPos;
                 
-                for (let j = 0; j < part.length; j++) {
-                    if (part[j] === '(') parenCount++;
-                    else if (part[j] === ')') parenCount--;
-                    else if (part[j] === '=' && parenCount === 0) {
-                        equalPos = j;
+                for (let i = searchStart; i < remainingText.length; i++) {
+                    if (remainingText[i] === '(') parenCount++;
+                    else if (remainingText[i] === ')') parenCount--;
+                    else if (remainingText[i] === '=' && parenCount === 0) {
+                        equalPos = i;
                         break;
                     }
                 }
                 
-                if (equalPos === -1) continue;
+                if (equalPos === -1) break;
                 
-                const target = part.substring(0, equalPos).trim();
-                const source = part.substring(equalPos + 1).trim();
+                // Estrai il target (tutto quello prima di =)
+                let target = remainingText.substring(startPos, equalPos).trim();
+                
+                // Trova dove finisce il source value
+                let sourceStart = equalPos + 1;
+                let sourceEnd = remainingText.length;
+                
+                // Cerca il prossimo mapping (prossimo / che non è dentro funzioni)
+                parenCount = 0;
+                for (let i = sourceStart; i < remainingText.length; i++) {
+                    if (remainingText[i] === '(') parenCount++;
+                    else if (remainingText[i] === ')') parenCount--;
+                    else if (remainingText[i] === '/' && parenCount === 0) {
+                        // Verifica se questo / inizia un nuovo mapping cercando il prossimo =
+                        let nextEqualPos = -1;
+                        let nextParenCount = 0;
+                        for (let j = i; j < remainingText.length; j++) {
+                            if (remainingText[j] === '(') nextParenCount++;
+                            else if (remainingText[j] === ')') nextParenCount--;
+                            else if (remainingText[j] === '=' && nextParenCount === 0) {
+                                nextEqualPos = j;
+                                break;
+                            }
+                        }
+                        
+                        if (nextEqualPos !== -1) {
+                            sourceEnd = i;
+                            break;
+                        }
+                    }
+                }
+                
+                let source = remainingText.substring(sourceStart, sourceEnd).trim();
                 
                 console.log(`Mapping ${counter}: "${target}" = "${source}"`);
                 
-                if (target && source) {
+                if (target && source && target.startsWith('/')) {
                     mappings.push({
                         number: counter++,
                         target: target,
                         source: source,
+                        sourceValue: source, // Salva il valore originale per ricalcolare le traduzioni
                         transformation: analyzeTransformation(source)
                     });
                 }
+                
+                // Continua con il resto del testo
+                remainingText = remainingText.substring(sourceEnd);
             }
             
             console.log('Mappings finali:', mappings);
@@ -575,26 +629,130 @@
         function analyzeTransformation(sourceValue) {
             if (sourceValue.startsWith('const(')) {
                 const match = sourceValue.match(/const\(value=([^)]*)\)/);
-                return match ? `const(value=${match[1] || 'Empty'})` : 'const()';
-            }
-            
-            if (sourceValue.includes('removeContexts')) {
-                return 'removeContexts';
-            }
-            
-            if (sourceValue.includes('CopyValue') && sourceValue.includes('iFS')) {
-                return 'CopyValue + iFS + substring + formatNumber + mapWithDefault + greater + length (Tronca a 12 caratteri se lunghezza > 12)';
-            }
-            
-            if (sourceValue.includes('iFS') && sourceValue.includes('substring')) {
-                return 'iFS + substring + formatNumber + mapWithDefault + greater + length (Tronca a 12 caratteri se lunghezza > 12)';
+                const value = match && match[1] ? match[1] : getTranslation('empty', 'messages');
+                return `${getTranslation('constantValue', 'explanations')}: "${value}"`;
             }
             
             if (sourceValue.startsWith('/')) {
-                return 'Mapping diretto';
+                return getTranslation('directMapping', 'explanations');
             }
             
-            return 'Root mapping';
+            // Analizza le funzioni principali
+            return analyzeComplexTransformation(sourceValue);
+        }
+        
+        function analyzeComplexTransformation(sourceValue) {
+            const explanations = [];
+            
+            // createIf
+            if (sourceValue.includes('createIf(')) {
+                const match = sourceValue.match(/createIf\(([^)]+)\)/);
+                if (match) {
+                    const condition = match[1];
+                    if (condition.includes('exists(')) {
+                        const existsMatch = condition.match(/exists\(([^)]+)\)/);
+                        if (existsMatch) {
+                            explanations.push(`${getTranslation('createField', 'explanations')}: ${existsMatch[1]}`);
+                        }
+                    } else {
+                        explanations.push(`${getTranslation('createFieldCondition', 'explanations')}: ${condition}`);
+                    }
+                }
+            }
+            
+            // exists
+            if (sourceValue.includes('exists(') && !sourceValue.includes('createIf(')) {
+                const match = sourceValue.match(/exists\(([^)]+)\)/);
+                if (match) {
+                    explanations.push(`${getTranslation('verifyExistence', 'explanations')}: ${match[1]}`);
+                }
+            }
+            
+            // CopyValue
+            if (sourceValue.includes('CopyValue(')) {
+                const paths = extractSourcePaths(sourceValue);
+                const sourceText = paths.length > 1 ? getTranslation('distributeValues', 'explanations') : getTranslation('distributeValue', 'explanations');
+                explanations.push(`${sourceText}: ${paths.join(', ')} ${getTranslation('onAllTargets', 'explanations')}`);
+            }
+            
+            // TransformDate
+            if (sourceValue.includes('TransformDate(')) {
+                const oformMatch = sourceValue.match(/oform=([^,)]+)/);
+                const format = oformMatch ? oformMatch[1] : (currentLanguage === 'it' ? 'formato specificato' : 'specified format');
+                explanations.push(`${getTranslation('transformDate', 'explanations')}: ${format}`);
+            }
+            
+            // currentDate
+            if (sourceValue.includes('currentDate(')) {
+                const oformMatch = sourceValue.match(/oform=([^,)]+)/);
+                const format = oformMatch ? oformMatch[1] : (currentLanguage === 'it' ? 'formato specificato' : 'specified format');
+                explanations.push(`${getTranslation('useCurrentDate', 'explanations')}: ${format}`);
+            }
+            
+            // useOneAsMany
+            if (sourceValue.includes('useOneAsMany(')) {
+                const paths = extractSourcePaths(sourceValue);
+                if (paths.length > 0) {
+                    explanations.push(`${getTranslation('useFirstField', 'explanations')}: ${paths[0]}`);
+                }
+            }
+            
+            // removeContexts
+            if (sourceValue.includes('removeContexts(')) {
+                const match = sourceValue.match(/removeContexts\(([^)]+)\)/);
+                if (match) {
+                    explanations.push(`${getTranslation('removeContexts', 'explanations')}: ${match[1]}`);
+                }
+            }
+            
+            // Funzioni di manipolazione stringa
+            if (sourceValue.includes('substring(')) {
+                const startMatch = sourceValue.match(/start=(\d+)/);
+                const countMatch = sourceValue.match(/count=(\d+)/);
+                const start = startMatch ? startMatch[1] : (currentLanguage === 'it' ? 'indice specificato' : 'specified index');
+                const count = countMatch ? countMatch[1] : (currentLanguage === 'it' ? 'numero di caratteri specificato' : 'specified character count');
+                explanations.push(`${getTranslation('extractSubstring', 'explanations')} ${start} ${getTranslation('forCharacters', 'explanations')} ${count} ${getTranslation('characters', 'explanations')}`);
+            }
+            
+            if (sourceValue.includes('length(')) {
+                explanations.push(getTranslation('calculateLength', 'explanations'));
+            }
+            
+            if (sourceValue.includes('greater(')) {
+                const match = sourceValue.match(/greater\([^,]+,\s*const\(value=(\d+)\)/);
+                const value = match ? match[1] : (currentLanguage === 'it' ? 'valore specificato' : 'specified value');
+                explanations.push(`${getTranslation('verifyGreater', 'explanations')} ${value}`);
+            }
+            
+            // ifWithoutElse
+            if (sourceValue.includes('ifWithoutElse(')) {
+                explanations.push(getTranslation('conditionWithoutElse', 'explanations'));
+            }
+            
+            // iFS (if-then-else)
+            if (sourceValue.includes('iFS(')) {
+                explanations.push(getTranslation('ifThenElse', 'explanations'));
+            }
+            
+            // Funzioni di formattazione
+            if (sourceValue.includes('formatNumber(')) {
+                explanations.push(getTranslation('formatNumber', 'explanations'));
+            }
+            
+            if (sourceValue.includes('mapWithDefault(')) {
+                explanations.push(getTranslation('applyDefault', 'explanations'));
+            }
+            
+            // Se non ci sono spiegazioni specifiche, fornisci una generica
+            if (explanations.length === 0) {
+                if (sourceValue.includes('(')) {
+                    return getTranslation('customFunctions', 'explanations');
+                } else {
+                    return getTranslation('simpleMapping', 'explanations');
+                }
+            }
+            
+            return explanations.join(' + ');
         }
         
         function determineMappingName(input) {
@@ -614,13 +772,13 @@
                 <div class="alert alert-info">
                     ✅ ${getTranslation('success', 'messages').replace('{0}', mappings.length)}
                 </div>
-                <table class="output-table">
+                <table class="output-table" style="table-layout: fixed; width: 100%;">
                     <thead>
                         <tr>
-                            <th style="width: 5%;">${getTranslation('number', 'tableHeaders')}</th>
-                            <th style="width: 40%;">${getTranslation('target', 'tableHeaders')}</th>
-                            <th style="width: 30%;">${getTranslation('source', 'tableHeaders')}</th>
-                            <th style="width: 25%;">${getTranslation('transformation', 'tableHeaders')}</th>
+                            <th style="width: 5%; min-width: 40px;">${getTranslation('number', 'tableHeaders')}</th>
+                            <th style="width: 35%; min-width: 200px;">${getTranslation('target', 'tableHeaders')}</th>
+                            <th style="width: 25%; min-width: 150px;">${getTranslation('source', 'tableHeaders')}</th>
+                            <th style="width: 35%; min-width: 200px;">${getTranslation('transformation', 'tableHeaders')}</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -630,12 +788,15 @@
                 const sourceClass = mapping.source.startsWith('/') ? 'source' : 
                                   mapping.source.includes('const(') ? 'constant' : '';
                 
+                // Ricalcola la trasformazione con la lingua corrente
+                const currentTransformation = analyzeTransformation(mapping.sourceValue || mapping.source);
+                
                 html += `
                     <tr>
                         <td>${mapping.number}</td>
                         <td class="path">${escapeHtml(mapping.target)}</td>
                         <td class="path ${sourceClass}">${escapeHtml(formatSource(mapping.source))}</td>
-                        <td class="function">${escapeHtml(getTranslation(mapping.transformation, 'transformations'))}</td>
+                        <td class="function">${escapeHtml(currentTransformation)}</td>
                     </tr>
                 `;
             });
@@ -649,11 +810,48 @@
         }
         
         function formatSource(source) {
+            // Se è una costante, estrai il valore
             if (source.startsWith('const(')) {
                 const match = source.match(/const\(value=([^)]*)\)/);
                 return match && match[1] ? match[1] : getTranslation('empty', 'messages');
             }
+            
+            // Se è un mapping diretto (inizia con /), mostralo direttamente
+            if (source.startsWith('/')) {
+                return source;
+            }
+            
+            // Se contiene funzioni, estrai i path dei campi source
+            if (source.includes('(') && source.includes(')')) {
+                const sourcePaths = extractSourcePaths(source);
+                return sourcePaths.length > 0 ? sourcePaths.join(', ') : source;
+            }
+            
             return source;
+        }
+        
+        function extractSourcePaths(functionString) {
+            const paths = [];
+            const regex = /(\/[^,)]+)/g;
+            let match;
+            
+            // Estrai tutti i path che iniziano con / e sono seguiti da , o )
+            while ((match = regex.exec(functionString)) !== null) {
+                let path = match[1].trim();
+                
+                // Rimuovi eventuali spazi o caratteri extra alla fine
+                path = path.replace(/\s+$/, '');
+                
+                // Verifica che sia un path valido (deve contenere almeno un altro /)
+                if (path.includes('/') && path.length > 1) {
+                    // Evita duplicati
+                    if (!paths.includes(path)) {
+                        paths.push(path);
+                    }
+                }
+            }
+            
+            return paths;
         }
         
         function escapeHtml(text) {
