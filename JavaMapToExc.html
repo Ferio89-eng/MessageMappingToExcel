@@ -146,6 +146,13 @@
             overflow-x: auto;
             -webkit-overflow-scrolling: touch;
             padding-bottom: 40px;
+            transition: height 0.3s ease;
+        }
+        
+        .output-area.expanded {
+            height: calc(100vh - 150px);
+            min-height: 550px;
+            max-height: 1500px;
         }
         
         .output-table {
@@ -877,6 +884,13 @@
             `;
             
             outputArea.innerHTML = html;
+            
+            // Espandi l'area output se ci sono più di 8 righe per sfruttare meglio lo spazio
+            if (mappings.length > 8) {
+                outputArea.classList.add('expanded');
+            } else {
+                outputArea.classList.remove('expanded');
+            }
         }
         
         function formatSource(source) {
