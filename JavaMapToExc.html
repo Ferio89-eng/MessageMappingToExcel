@@ -301,6 +301,9 @@
                             <li>Visualizza i risultati nella tabella a destra</li>
                             <li>Esporta in Excel quando necessario</li>
                         </ol>
+                        <p style="margin-top: 15px; font-style: italic; color: #6c757d; font-size: 12px;">
+                            📌 Versione 2.1.0 - Message Mapping Parser - by Ferio89
+                        </p>
                     </div>
                 </div>
             </div>
@@ -549,61 +552,48 @@
             const matches = [];
             let remainingText = normalized;
             
-            // Cerca tutti i mapping che iniziano con / seguito da un =
-            while (remainingText.length > 0) {
-                // Trova il prossimo /...= pattern
-                let startPos = remainingText.indexOf('/');
-                if (startPos === -1) break;
+            // Prima dividi il testo usando la sequenza " /" (spazio + slash) come delimitatore
+            // Questo identifica correttamente i mapping anche quando sono su una sola riga
+            let mappingParts = [];
+            
+            // Splitta usando " /" come delimitatore, ma mantieni il "/" all'inizio di ogni parte
+            let parts = normalized.split(' /');
+            
+            // Il primo elemento potrebbe non avere lo spazio iniziale
+            if (parts.length > 0 && parts[0].trim().startsWith('/')) {
+                mappingParts.push(parts[0].trim());
+            }
+            
+            // Aggiungi "/" all'inizio degli altri elementi (rimosso durante lo split)
+            for (let i = 1; i < parts.length; i++) {
+                if (parts[i].trim().length > 0) {
+                    mappingParts.push('/' + parts[i].trim());
+                }
+            }
+            
+            console.log(`Trovate ${mappingParts.length} parti di mapping`);
+            
+            // Ora processa ogni parte di mapping
+            for (let mappingPart of mappingParts) {
+                if (!mappingPart.includes('=')) continue;
                 
-                // Trova il corrispondente = che non è dentro parentesi
+                // Trova il primo '=' che non è dentro parentesi
                 let equalPos = -1;
                 let parenCount = 0;
-                let searchStart = startPos;
                 
-                for (let i = searchStart; i < remainingText.length; i++) {
-                    if (remainingText[i] === '(') parenCount++;
-                    else if (remainingText[i] === ')') parenCount--;
-                    else if (remainingText[i] === '=' && parenCount === 0) {
+                for (let i = 0; i < mappingPart.length; i++) {
+                    if (mappingPart[i] === '(') parenCount++;
+                    else if (mappingPart[i] === ')') parenCount--;
+                    else if (mappingPart[i] === '=' && parenCount === 0) {
                         equalPos = i;
                         break;
                     }
                 }
                 
-                if (equalPos === -1) break;
+                if (equalPos === -1) continue;
                 
-                // Estrai il target (tutto quello prima di =)
-                let target = remainingText.substring(startPos, equalPos).trim();
-                
-                // Trova dove finisce il source value
-                let sourceStart = equalPos + 1;
-                let sourceEnd = remainingText.length;
-                
-                // Cerca il prossimo mapping (prossimo / che non è dentro funzioni)
-                parenCount = 0;
-                for (let i = sourceStart; i < remainingText.length; i++) {
-                    if (remainingText[i] === '(') parenCount++;
-                    else if (remainingText[i] === ')') parenCount--;
-                    else if (remainingText[i] === '/' && parenCount === 0) {
-                        // Verifica se questo / inizia un nuovo mapping cercando il prossimo =
-                        let nextEqualPos = -1;
-                        let nextParenCount = 0;
-                        for (let j = i; j < remainingText.length; j++) {
-                            if (remainingText[j] === '(') nextParenCount++;
-                            else if (remainingText[j] === ')') nextParenCount--;
-                            else if (remainingText[j] === '=' && nextParenCount === 0) {
-                                nextEqualPos = j;
-                                break;
-                            }
-                        }
-                        
-                        if (nextEqualPos !== -1) {
-                            sourceEnd = i;
-                            break;
-                        }
-                    }
-                }
-                
-                let source = remainingText.substring(sourceStart, sourceEnd).trim();
+                let target = mappingPart.substring(0, equalPos).trim();
+                let source = mappingPart.substring(equalPos + 1).trim();
                 
                 console.log(`Mapping ${counter}: "${target}" = "${source}"`);
                 
@@ -616,9 +606,6 @@
                         transformation: analyzeTransformation(source)
                     });
                 }
-                
-                // Continua con il resto del testo
-                remainingText = remainingText.substring(sourceEnd);
             }
             
             console.log('Mappings finali:', mappings);
