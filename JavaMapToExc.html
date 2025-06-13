@@ -293,10 +293,30 @@
                         <button class="btn btn-secondary" onclick="loadExample('batch')">📄 Esempio BatchNumber</button>
                     </div>
                     
+                    <div style="margin-top: 20px; padding: 15px; background: #e9ecef; border-radius: 8px;">
+                        <h5 style="margin-bottom: 10px; color: #495057;">📁 Configurazione Nome File Excel</h5>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 10px;">
+                            <div>
+                                <label style="font-size: 12px; color: #6c757d;">GIF Code:</label>
+                                <input type="text" id="gifCode" placeholder="es. GIF1148" style="width: 100%; padding: 5px; border: 1px solid #ced4da; border-radius: 4px; font-size: 12px;">
+                            </div>
+                            <div>
+                                <label style="font-size: 12px; color: #6c757d;">Sistema Sender:</label>
+                                <input type="text" id="systemSender" placeholder="es. QAD" style="width: 100%; padding: 5px; border: 1px solid #ced4da; border-radius: 4px; font-size: 12px;">
+                            </div>
+                            <div>
+                                <label style="font-size: 12px; color: #6c757d;">Sistema Receiver:</label>
+                                <input type="text" id="systemReceiver" placeholder="es. TrackWise" style="width: 100%; padding: 5px; border: 1px solid #ced4da; border-radius: 4px; font-size: 12px;">
+                            </div>
+                        </div>
+                        <p style="font-size: 11px; color: #6c757d; margin: 0;">I campi vuoti verranno omessi dal nome file</p>
+                    </div>
+                    
                     <div class="examples">
                         <h4>💡 Come usare:</h4>
                         <ol>
                             <li>Incolla il Message Mapping nel campo di testo</li>
+                            <li>Configura i campi per il nome file Excel (opzionale)</li>
                             <li>Clicca "Analizza Mapping" per processare</li>
                             <li>Visualizza i risultati nella tabella a destra</li>
                             <li>Esporta in Excel quando necessario</li>
@@ -359,6 +379,7 @@
                 },
                 explanations: {
                     constantValue: 'Assegna valore costante',
+                    parameterValue: 'Assegna parametro',
                     directMapping: 'Mapping diretto del campo source',
                     createField: 'Crea il campo solo se esiste',
                     createFieldCondition: 'Crea il campo con condizione',
@@ -368,6 +389,7 @@
                     onAllTargets: 'su tutti i campi target',
                     transformDate: 'Trasforma la data nel formato',
                     useCurrentDate: 'Usa la data corrente nel formato',
+                    useCurrentTime: 'Usa l\'ora corrente nel formato',
                     useFirstField: 'Usa il primo campo come riferimento',
                     removeContexts: 'Rimuovi contesti dal campo',
                     extractSubstring: 'Estrai sottostringa dall\'indice',
@@ -380,7 +402,8 @@
                     formatNumber: 'Formatta il numero',
                     applyDefault: 'Applica valore di default se il campo è vuoto',
                     customFunctions: 'Trasformazione con funzioni personalizzate',
-                    simpleMapping: 'Mapping semplice'
+                    simpleMapping: 'Mapping semplice',
+                    valueMapping: 'Trascodifica dei valori dei campi'
                 },
                 notes: {
                     complexTransformations: 'Note Trasformazioni',
@@ -425,6 +448,7 @@
                 },
                 explanations: {
                     constantValue: 'Assign constant value',
+                    parameterValue: 'Assign parameter',
                     directMapping: 'Direct mapping of source field',
                     createField: 'Create field only if exists',
                     createFieldCondition: 'Create field with condition',
@@ -434,6 +458,7 @@
                     onAllTargets: 'on all target fields',
                     transformDate: 'Transform date to format',
                     useCurrentDate: 'Use current date in format',
+                    useCurrentTime: 'Use current time in format',
                     useFirstField: 'Use first field as reference',
                     removeContexts: 'Remove contexts from field',
                     extractSubstring: 'Extract substring from index',
@@ -446,7 +471,8 @@
                     formatNumber: 'Format number',
                     applyDefault: 'Apply default value if field is empty',
                     customFunctions: 'Transformation with custom functions',
-                    simpleMapping: 'Simple mapping'
+                    simpleMapping: 'Simple mapping',
+                    valueMapping: 'Value mapping of fields'
                 },
                 notes: {
                     complexTransformations: 'Transformation Notes',
@@ -491,6 +517,9 @@
         
         function clearInput() {
             document.getElementById('mappingInput').value = '';
+            document.getElementById('gifCode').value = '';
+            document.getElementById('systemSender').value = '';
+            document.getElementById('systemReceiver').value = '';
             document.getElementById('outputArea').innerHTML = '<div class="alert alert-info">👈 Inserisci un message mapping a sinistra e clicca "Analizza Mapping" per iniziare</div>';
             document.getElementById('exportBtn').disabled = true;
             parsedMappings = [];
@@ -553,21 +582,50 @@
             let remainingText = normalized;
             
             // Prima dividi il testo usando la sequenza " /" (spazio + slash) come delimitatore
-            // Questo identifica correttamente i mapping anche quando sono su una sola riga
+            // Ma proteggi le funzioni complesse come valuemap(concat(...))
             let mappingParts = [];
             
-            // Splitta usando " /" come delimitatore, ma mantieni il "/" all'inizio di ogni parte
-            let parts = normalized.split(' /');
+            // Approccio ibrido: prima proteggi le funzioni complesse, poi dividi
+            let protectedText = normalized;
+            let protectedFunctions = [];
+            let protectionIndex = 0;
+            
+            // Identifica e proteggi le funzioni valuemap(concat(...))
+            const valuemapRegex = /valuemap\(concat\([^)]+\)[^)]*\)/g;
+            let valuemapMatch;
+            while ((valuemapMatch = valuemapRegex.exec(normalized)) !== null) {
+                const placeholder = `__PROTECTED_${protectionIndex}__`;
+                protectedFunctions[protectionIndex] = valuemapMatch[0];
+                protectedText = protectedText.replace(valuemapMatch[0], placeholder);
+                protectionIndex++;
+            }
+            
+            // Ora dividi usando " /" sul testo protetto
+            let parts = protectedText.split(' /');
             
             // Il primo elemento potrebbe non avere lo spazio iniziale
             if (parts.length > 0 && parts[0].trim().startsWith('/')) {
                 mappingParts.push(parts[0].trim());
             }
             
-            // Aggiungi "/" all'inizio degli altri elementi (rimosso durante lo split)
+            // Aggiungi "/" all'inizio degli altri elementi e ripristina le funzioni protette
             for (let i = 1; i < parts.length; i++) {
                 if (parts[i].trim().length > 0) {
-                    mappingParts.push('/' + parts[i].trim());
+                    let part = '/' + parts[i].trim();
+                    
+                    // Ripristina le funzioni protette
+                    for (let j = 0; j < protectedFunctions.length; j++) {
+                        part = part.replace(`__PROTECTED_${j}__`, protectedFunctions[j]);
+                    }
+                    
+                    mappingParts.push(part);
+                }
+            }
+            
+            // Ripristina le funzioni protette nella prima parte se necessario
+            if (mappingParts.length > 0) {
+                for (let j = 0; j < protectedFunctions.length; j++) {
+                    mappingParts[0] = mappingParts[0].replace(`__PROTECTED_${j}__`, protectedFunctions[j]);
                 }
             }
             
@@ -617,7 +675,14 @@
             if (sourceValue.startsWith('const(')) {
                 const match = sourceValue.match(/const\(value=([^)]*)\)/);
                 const value = match && match[1] ? match[1] : getTranslation('empty', 'messages');
-                return `${getTranslation('constantValue', 'explanations')}: "${value}"`;
+                
+                // Controlla se è un parametro (tra dollari $)
+                if (value.startsWith('$') && value.endsWith('$') && value.length > 2) {
+                    const paramName = value.slice(1, -1); // Rimuovi i dollari
+                    return `${getTranslation('parameterValue', 'explanations')}: "${paramName}"`;
+                } else {
+                    return `${getTranslation('constantValue', 'explanations')}: "${value}"`;
+                }
             }
             
             if (sourceValue.startsWith('/')) {
@@ -673,7 +738,13 @@
             if (sourceValue.includes('currentDate(')) {
                 const oformMatch = sourceValue.match(/oform=([^,)]+)/);
                 const format = oformMatch ? oformMatch[1] : (currentLanguage === 'it' ? 'formato specificato' : 'specified format');
-                explanations.push(`${getTranslation('useCurrentDate', 'explanations')}: ${format}`);
+                
+                // Controlla se è un formato di ora (inizia con HH)
+                if (format.startsWith('HH')) {
+                    explanations.push(`${getTranslation('useCurrentTime', 'explanations')}: ${format}`);
+                } else {
+                    explanations.push(`${getTranslation('useCurrentDate', 'explanations')}: ${format}`);
+                }
             }
             
             // useOneAsMany
@@ -681,6 +752,18 @@
                 const paths = extractSourcePaths(sourceValue);
                 if (paths.length > 0) {
                     explanations.push(`${getTranslation('useFirstField', 'explanations')}: ${paths[0]}`);
+                }
+            }
+            
+            // valuemap
+            if (sourceValue.includes('valuemap(')) {
+                const paths = extractSourcePaths(sourceValue);
+                if (paths.length > 0) {
+                    const connector = currentLanguage === 'it' ? ' e ' : ' and ';
+                    const pathsText = paths.join(connector);
+                    explanations.push(`${getTranslation('valueMapping', 'explanations')} ${pathsText}`);
+                } else {
+                    explanations.push(getTranslation('valueMapping', 'explanations'));
                 }
             }
             
@@ -819,6 +902,30 @@
         
         function extractSourcePaths(functionString) {
             const paths = [];
+            
+            // Gestione speciale per valuemap(concat(...)) - estrai dai parametri di concat
+            if (functionString.includes('valuemap(') && functionString.includes('concat(')) {
+                const concatMatch = functionString.match(/concat\(([^)]+)\)/);
+                if (concatMatch) {
+                    const concatParams = concatMatch[1];
+                    const regex = /(\/[^,)]+)/g;
+                    let match;
+                    
+                    while ((match = regex.exec(concatParams)) !== null) {
+                        let path = match[1].trim();
+                        if (path.includes('/') && path.length > 1 && !paths.includes(path)) {
+                            paths.push(path);
+                        }
+                    }
+                    
+                    // Se abbiamo trovato path in concat, ritorna quelli
+                    if (paths.length > 0) {
+                        return paths;
+                    }
+                }
+            }
+            
+            // Logica generale: estrai tutti i path che iniziano con / 
             const regex = /(\/[^,)]+)/g;
             let match;
             
@@ -850,6 +957,32 @@
         function showError(message) {
             const outputArea = document.getElementById('outputArea');
             outputArea.innerHTML = `<div class="alert alert-error">${message}</div>`;
+        }
+        
+        function generateDynamicFilename() {
+            const gifCode = document.getElementById('gifCode').value.trim();
+            const systemSender = document.getElementById('systemSender').value.trim();
+            const systemReceiver = document.getElementById('systemReceiver').value.trim();
+            const currentDate = new Date().toISOString().slice(0, 10); // yyyy-MM-dd
+            
+            // Costruisci il nome file seguendo la naming convention
+            let filename = 'Mapping';
+            
+            if (gifCode) {
+                filename += '_' + gifCode;
+            }
+            
+            if (systemSender) {
+                filename += '_' + systemSender;
+            }
+            
+            if (systemReceiver) {
+                filename += '_' + systemReceiver;
+            }
+            
+            filename += '_' + currentDate + '.xlsx';
+            
+            return filename;
         }
         
         function exportToExcel() {
@@ -926,8 +1059,8 @@
                     XLSX.utils.book_append_sheet(wb, wsNotes, getTranslation('complexTransformations', 'notes'));
                 }
                 
-                // Salva il file
-                const filename = `Mapping_SAP074_TRACKWISE_${currentMappingName}_${new Date().toISOString().slice(0,10)}.xlsx`;
+                // Genera il nome file dinamico
+                const filename = generateDynamicFilename();
                 console.log('Attempting to save file:', filename); // Debug
                 
                 XLSX.writeFile(wb, filename);
