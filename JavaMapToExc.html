@@ -323,7 +323,7 @@
                         <h4>💡 Come usare:</h4>
                         <ol>
                             <li>Incolla il Message Mapping nel campo di testo</li>
-                            <li>Configura i campi per il nome del file Excel da scaricare (opzionale)</li>
+                            <li>Configura i campi per il nome file Excel (opzionale)</li>
                             <li>Clicca "Analizza Mapping" per processare</li>
                             <li>Visualizza i risultati nella tabella a destra</li>
                             <li>Esporta in Excel quando necessario</li>
@@ -1014,11 +1014,14 @@
                 ];
                 
                 parsedMappings.forEach(mapping => {
+                    // Ricalcola la trasformazione con la lingua corrente per l'export
+                    const currentTransformation = analyzeTransformation(mapping.sourceValue || mapping.source);
+                    
                     data.push([
                         mapping.number,
                         mapping.target,
                         formatSource(mapping.source),
-                        getTranslation(mapping.transformation, 'transformations')
+                        currentTransformation
                     ]);
                 });
                 
