@@ -1,0 +1,1072 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SAP Message Mapping XML to Excel Converter</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            font-weight: 300;
+        }
+        
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+        
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0;
+            min-height: 600px;
+        }
+        
+        .input-section {
+            background: #f8f9fa;
+            border-right: 1px solid #e9ecef;
+        }
+        
+        .output-section {
+            background: white;
+        }
+        
+        .section-header {
+            padding: 20px 30px;
+            border-bottom: 1px solid #e9ecef;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .section-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+        
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            font-weight: 500;
+            margin-right: 10px;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(52, 152, 219, 0.4);
+        }
+        
+        .btn-success {
+            background: linear-gradient(135deg, #27ae60, #229954);
+            color: white;
+        }
+        
+        .btn-success:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(39, 174, 96, 0.4);
+        }
+        
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background: #5a6268;
+            transform: translateY(-2px);
+        }
+        
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .input-area {
+            padding: 30px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-row {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        
+        .form-col {
+            flex: 1;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #555;
+            font-size: 14px;
+        }
+        
+        input[type="file"], input[type="text"], select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s ease;
+        }
+        
+        input[type="file"]:focus, input[type="text"]:focus, select:focus {
+            outline: none;
+            border-color: #3498db;
+            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+        }
+        
+        .output-area {
+            padding: 30px;
+            height: 550px;
+            overflow-y: auto;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            padding-bottom: 40px;
+            transition: height 0.3s ease;
+        }
+        
+        .output-area.expanded {
+            height: calc(100vh - 150px);
+            min-height: 550px;
+            max-height: 1500px;
+        }
+        
+        .output-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+            margin-top: 15px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        
+        .output-table th,
+        .output-table td {
+            border: 1px solid #dee2e6;
+            padding: 8px;
+            text-align: left;
+            vertical-align: top;
+            word-wrap: break-word;
+            word-break: break-word;
+            white-space: normal;
+            max-width: 0;
+        }
+        
+        .output-table th {
+            background: #f8f9fa;
+            font-weight: 600;
+            color: #495057;
+            border-bottom: 2px solid #dee2e6;
+        }
+        
+        .output-table tr:nth-child(even) {
+            background: #f9f9f9;
+        }
+        
+        .output-table tr:hover {
+            background: #e8f4fd;
+            transition: background-color 0.2s ease;
+        }
+        
+        .path {
+            font-family: 'Courier New', monospace;
+            font-size: 11px;
+            word-break: break-all;
+        }
+        
+        .function {
+            font-family: 'Courier New', monospace;
+            background: #e9ecef;
+            padding: 2px 4px;
+            border-radius: 3px;
+            font-size: 10px;
+        }
+        
+        .constant {
+            color: #e74c3c;
+            font-weight: bold;
+        }
+        
+        .source {
+            color: #2980b9;
+        }
+        
+        .col-n { width: 5%; }
+        .col-target { width: 35%; }
+        .col-source { width: 25%; }
+        .col-transformation { width: 35%; }
+        
+        .language-selector {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        
+        .alert {
+            padding: 15px;
+            margin: 20px 30px;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+        
+        .alert-success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        
+        .alert-error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        
+        .alert-info {
+            background: #d1ecf1;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+        }
+        
+        #loadingSpinner {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+        
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        .examples {
+            margin-top: 20px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+        
+        .examples h4 {
+            margin-bottom: 15px;
+            color: #2c3e50;
+        }
+        
+        .examples ol {
+            margin-left: 20px;
+            margin-bottom: 15px;
+        }
+        
+        .examples li {
+            margin-bottom: 5px;
+            font-size: 14px;
+        }
+        
+        .examples p {
+            margin-top: 15px;
+            font-style: italic;
+            color: #6c757d;
+            font-size: 12px;
+        }
+        
+        @media (max-width: 1024px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+            
+            .input-section {
+                border-right: none;
+                border-bottom: 1px solid #e9ecef;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1 id="pageTitle">🔄 SAP Message Mapping XML to Excel Converter</h1>
+            <p id="pageSubtitle">Converti i tuoi Message Mapping XML in fogli Excel</p>
+        </div>
+        
+        <div class="main-content">
+            <div class="input-section">
+                <div class="section-header">
+                    <div class="section-title" id="inputSectionTitle">📝 Input Message Mapping XML</div>
+                    <button class="btn btn-primary" onclick="parseFile()" id="parseBtn">
+                        🚀 Analizza File
+                    </button>
+                </div>
+                
+                <div class="input-area">
+                    <div class="form-group">
+                        <label for="mmapFile" id="fileLabel">Seleziona file Message Mapping XML (.mmap):</label>
+                        <input type="file" id="mmapFile" accept=".mmap,.xml" />
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-col">
+                            <label for="gifCode" id="gifCodeLabel">Codice GIF:</label>
+                            <input type="text" id="gifCode" placeholder="es: GIF1148" />
+                        </div>
+                        <div class="form-col">
+                            <label for="sistemaSender" id="sistemaSenderLabel">Sistema Sender:</label>
+                            <input type="text" id="sistemaSender" placeholder="es: QAD" />
+                        </div>
+                        <div class="form-col">
+                            <label for="sistemaReceiver" id="sistemaReceiverLabel">Sistema Receiver:</label>
+                            <input type="text" id="sistemaReceiver" placeholder="es: TrackWise" />
+                        </div>
+                    </div>
+                    
+                    <div class="controls">
+                        <button class="btn btn-secondary" onclick="clearAll()" id="clearBtn">🗑️ Pulisci</button>
+                        <button class="btn btn-secondary" onclick="loadExample()" id="loadExampleBtn">📄 Carica File</button>
+                    </div>
+                    
+                    <div class="examples">
+                        <h4 id="howToUseTitle">💡 Come usare:</h4>
+                        <ol id="instructionsList">
+                            <li id="instruction1">Seleziona un file Message Mapping (.mmap) scaricato da Integration Suite</li>
+                            <li id="instruction2">Carica il file attraverso l'apposito pulsante</li>
+                            <li id="instruction3">Configura i campi per il nome del file Excel da scaricare (opzionale)</li>
+                            <li id="instruction4">Clicca "Analizza File" per processare</li>
+                            <li id="instruction5">Visualizza i risultati nella tabella a destra</li>
+                            <li id="instruction6">Esporta in Excel quando necessario</li>
+                        </ol>
+                        <p id="versionInfo">📌 Versione 1.0.0 - Integration Suite Message Mapping Parser - by Ferio89</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="output-section">
+                <div class="section-header">
+                    <div class="section-title" id="outputSectionTitle">📊 Risultati Analisi</div>
+                    <div class="language-selector">
+                        <select id="languageSelect" onchange="changeLanguage()">
+                            <option value="it">IT</option>
+                            <option value="en">EN</option>
+                        </select>
+                        <button class="btn btn-success" onclick="exportToExcel()" id="exportBtn" disabled>
+                            📥 Esporta Excel
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="output-area" id="outputArea">
+                    <div class="alert alert-info" id="initialMessage">
+                        👈 Seleziona un file Message Mapping XML a sinistra e clicca "Analizza File" per iniziare
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div id="loadingSpinner">
+            <div class="spinner"></div>
+            <p id="loadingText">Elaborazione in corso...</p>
+        </div>
+    </div>
+    
+    <script>
+        // Variabili globali
+        let parsedData = [];
+        let currentLanguage = 'it';
+        
+        // Traduzioni
+        const translations = {
+            it: {
+                pageTitle: "🔄 SAP Message Mapping XML to Excel Converter",
+                pageSubtitle: "Converti i tuoi Message Mapping XML in fogli Excel",
+                inputSectionTitle: "📝 Input Message Mapping XML",
+                outputSectionTitle: "📊 Risultati Analisi",
+                fileLabel: "Seleziona file Message Mapping (.mmap):",
+                gifCodeLabel: "Codice GIF:",
+                sistemaSenderLabel: "Sistema Sender:",
+                sistemaReceiverLabel: "Sistema Receiver:",
+                parseBtn: "🚀 Analizza File",
+                exportBtn: "📥 Esporta Excel",
+                clearBtn: "🗑️ Pulisci",
+                loadExampleBtn: "📄 Carica File",
+                loadingText: "Elaborazione in corso...",
+                howToUseTitle: "💡 Come usare:",
+                instruction1: "Seleziona un file Message Mapping (.mmap) scaricato da Integration Suite",
+                instruction2: "Carica il file attraverso l'apposito pulsante",
+                instruction3: "Configura i campi per il nome del file Excel da scaricare (opzionale)",
+                instruction4: "Clicca \"Analizza File\" per processare",
+                instruction5: "Visualizza i risultati nella tabella a destra",
+                instruction6: "Esporta in Excel quando necessario",
+                versionInfo: "📌 Versione 1.0.0 - Integration Suite Message Mapping Parser - by Ferio89",
+                initialMessage: "👈 Seleziona un file Message Mapping (.mmap) a sinistra e clicca \"Analizza File\" per iniziare",
+                tableHeaders: {
+                    n: "N.",
+                    target: "Campo Target",
+                    source: "Campo Source",
+                    transformation: "Trasformazione"
+                },
+                alerts: {
+                    noFile: "Seleziona prima un file .mmap",
+                    parseError: "Errore nel parsing del file",
+                    parseSuccess: "File analizzato con successo",
+                    exportSuccess: "File Excel esportato con successo",
+                    noData: "Nessun dato da esportare",
+                    noMappingFound: "Nessun mapping trovato nel file"
+                }
+            },
+            en: {
+                tableHeaders: {
+                    n: "N.",
+                    target: "Target Field",
+                    source: "Source Field",
+                    transformation: "Transformation"
+                },
+                alerts: {
+                    parseSuccess: "File parsed successfully"
+                }
+            }
+        };
+        
+        // Funzioni di trasformazione
+        const transformationExplanations = {
+            it: {
+                const: (params) => {
+                    const value = params?.value;
+                    if (value && typeof value === 'string' && value.includes('$') && value.startsWith('$') && value.endsWith('$')) {
+                        const paramName = value.slice(1, -1);
+                        return `Assegna parametro: '${paramName}'`;
+                    }
+                    if (value === '' || value === undefined || value === null) {
+                        return `Assegna valore costante vuoto`;
+                    }
+                    return `Assegna valore costante: '${value}'`;
+                },
+                CopyValue: () => "Distribuisci il valore del campo source",
+                removeContexts: () => "Rimuove i contesti multipli e distribuisce i valori",
+                TransformDate: (params) => {
+                    const iform = params?.iform || 'formato non specificato';
+                    const oform = params?.oform || 'formato non specificato';
+                    return `Trasforma la data dal formato '${iform}' nel formato '${oform}'`;
+                },
+                currentDate: (params) => {
+                    const oform = params?.oform || 'yyyyMMdd';
+                    if (oform.startsWith('HH')) {
+                        return "Usa l'ora corrente";
+                    }
+                    return "Usa la data corrente";
+                },
+                substring: (params) => {
+                    const start = params?.start || '0';
+                    const count = params?.count || 'fine';
+                    return `Estrae sottostringa dalla posizione ${start} per ${count} caratteri`;
+                },
+                length: () => "Calcola la lunghezza della stringa",
+                greater: () => "Verifica se il primo valore è maggiore del secondo",
+                ifWithoutElse: () => "Condizione IF senza ELSE - esegue solo se la condizione è vera",
+                ifSWithoutElse: () => "Condizione IF senza ELSE - esegue solo se la condizione è vera",
+                or: () => "Operatore logico OR - vero se almeno una condizione è vera",
+                mapWithDefault: (params) => {
+                    const defaultValue = params?.default_value || 'vuoto';
+                    return `Mappa il valore, usa '${defaultValue}' se vuoto`;
+                },
+                SplitByValue: () => "Divide il valore in più elementi",
+                formatNumber: () => "Formatta il numero secondo le specifiche",
+                concat: () => "Concatena più valori in una stringa",
+                useOneAsMany: () => "Usa un valore singolo per creare multiple occorrenze",
+                exists: () => "Verifica se il campo esiste",
+                createIf: () => "Crea il nodo solo se la condizione è soddisfatta",
+                dividiStringa: () => "Divide la stringa in base ai parametri (funzione personalizzata)",
+                ifSWithoutElse: () => "Condizione IF senza ELSE - esegue solo se la condizione è vera",
+                or: () => "Operatore logico OR - vero se almeno una condizione è vera",
+                SplitByValue: () => "Divide il valore in elementi separati"
+            },
+            en: {
+                const: (params) => {
+                    const value = params?.value;
+                    if (value && typeof value === 'string' && value.includes('$') && value.startsWith('$') && value.endsWith('$')) {
+                        const paramName = value.slice(1, -1);
+                        return `Assign parameter: '${paramName}'`;
+                    }
+                    if (value === '' || value === undefined || value === null) {
+                        return `Assign empty constant value`;
+                    }
+                    return `Assign constant value: '${value}'`;
+                },
+                CopyValue: () => "Distribute source field value",
+                removeContexts: () => "Remove multiple contexts and distribute values",
+                TransformDate: (params) => {
+                    const iform = params?.iform || 'format not specified';
+                    const oform = params?.oform || 'format not specified';
+                    return `Transform date from format '${iform}' to format '${oform}'`;
+                },
+                currentDate: (params) => {
+                    const oform = params?.oform || 'yyyyMMdd';
+                    if (oform.startsWith('HH')) {
+                        return "Use current time";
+                    }
+                    return "Use current date";
+                },
+                substring: (params) => {
+                    const start = params?.start || '0';
+                    const count = params?.count || 'end';
+                    return `Extract substring from position ${start} for ${count} characters`;
+                },
+                length: () => "Calculate string length",
+                greater: () => "Check if first value is greater than second",
+                ifWithoutElse: () => "IF condition without ELSE - executes only if condition is true",
+                ifSWithoutElse: () => "IF condition without ELSE - executes only if condition is true",
+                or: () => "Logical OR operator - true if at least one condition is true",
+                mapWithDefault: (params) => {
+                    const defaultValue = params?.default_value || 'empty';
+                    return `Map value, use '${defaultValue}' if empty`;
+                },
+                SplitByValue: () => "Split value into multiple elements",
+                formatNumber: () => "Format number according to specifications",
+                concat: () => "Concatenate multiple values into a string",
+                useOneAsMany: () => "Use single value to create multiple occurrences",
+                exists: () => "Check if field exists",
+                createIf: () => "Create node only if condition is satisfied",
+                dividiStringa: () => "Split string based on parameters (custom function)",
+                ifSWithoutElse: () => "IF condition without ELSE - executes only if condition is true",
+                or: () => "Logical OR operator - true if at least one condition is true",
+                SplitByValue: () => "Split value into separate elements"
+            }
+        };
+        
+        // Inizializzazione
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('languageSelect').addEventListener('change', function() {
+                changeLanguage(this.value);
+            });
+        });
+        
+        function changeLanguage(lang) {
+            currentLanguage = lang || document.getElementById('languageSelect').value;
+            
+            // NON tradurre l'interfaccia - mantieni sempre in italiano
+            // Rigenera solo la tabella se ci sono dati
+            if (parsedData.length > 0) {
+                generateTable();
+            }
+        }
+        
+        function showAlert(message, type = 'info') {
+            const outputArea = document.getElementById('outputArea');
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `alert alert-${type}`;
+            alertDiv.textContent = message;
+            
+            outputArea.innerHTML = '';
+            outputArea.appendChild(alertDiv);
+            
+            setTimeout(() => {
+                if (parsedData.length === 0) {
+                    outputArea.innerHTML = `<div class="alert alert-info" id="initialMessage">${translations[currentLanguage].initialMessage}</div>`;
+                }
+            }, 5000);
+        }
+        
+        function parseFile() {
+            const fileInput = document.getElementById('mmapFile');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                showAlert(translations[currentLanguage].alerts.noFile, 'error');
+                return;
+            }
+            
+            showLoading(true);
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const xmlContent = e.target.result;
+                    parsedData = parseXMLMapping(xmlContent);
+                    
+                    if (parsedData.length === 0) {
+                        showAlert(translations[currentLanguage].alerts.noMappingFound, 'error');
+                    } else {
+                        generateTable();
+                        document.getElementById('exportBtn').disabled = false;
+                    }
+                } catch (error) {
+                    console.error('Errore nel parsing:', error);
+                    showAlert(translations[currentLanguage].alerts.parseError + ': ' + error.message, 'error');
+                } finally {
+                    showLoading(false);
+                }
+            };
+            
+            reader.onerror = function() {
+                showLoading(false);
+                showAlert(translations[currentLanguage].alerts.parseError, 'error');
+            };
+            
+            reader.readAsText(file);
+        }
+        
+        function parseXMLMapping(xmlContent) {
+            const parser = new DOMParser();
+            const xmlDoc = parser.parseFromString(xmlContent, 'text/xml');
+            
+            // Controlla errori di parsing
+            const parserError = xmlDoc.querySelector('parsererror');
+            if (parserError) {
+                throw new Error('Errore di parsing XML: ' + parserError.textContent);
+            }
+            
+            // Trova il tag transformation
+            const transformation = xmlDoc.querySelector('transformation');
+            if (!transformation) {
+                throw new Error('Tag transformation non trovato nel file');
+            }
+            
+            // Trova tutti i brick con type="Dst" (target)
+            const targetBricks = transformation.querySelectorAll('brick[type="Dst"]');
+            const mappings = [];
+            
+            let validMappingCounter = 1;
+            
+            targetBricks.forEach((targetBrick, index) => {
+                try {
+                    const targetPath = targetBrick.getAttribute('path');
+                    if (!targetPath) return;
+                    
+                    // Analizza il contenuto del brick target per trovare source e functions
+                    const analysis = analyzeBrickContent(targetBrick);
+                    
+
+                    
+                    // Filtra i campi che hanno source N/A e transformation con [object Object]
+                    const sourceText = analysis.sources.join(', ') || 'N/A';
+                    const transformationText = analysis.transformation || 'Mapping diretto';
+                    
+                    // Salta SOLO i campi con problemi di parsing reali ([object Object])
+                    if (transformationText.includes('[object Object]')) {
+                        console.log(`Saltato campo con errore di parsing: ${targetPath}`);
+                        return;
+                    }
+                    
+                    // Non saltare i campi con costanti o mapping validi
+                    // Mantieni tutti i mapping che hanno una trasformazione valida
+                    
+                    // Per i campi con funzioni ma senza source espliciti, prova a estrarre i source dalle funzioni
+                    let finalSourceText = sourceText;
+                    let isConstant = false;
+                    let constantValue = '';
+                    
+                    if (sourceText === 'N/A' && analysis.functions && analysis.functions.length > 0) {
+                        // Controlla se è una costante
+                        const constFunction = analysis.functions.find(func => func.name === 'const');
+                        if (constFunction && constFunction.params && constFunction.params.value !== undefined) {
+                            // È una costante, usa il valore della costante come source
+                            constantValue = constFunction.params.value;
+                            finalSourceText = constantValue === '' ? 'Vuoto' : constantValue;
+                            isConstant = true;
+                        } else {
+                            // Se non è una costante, cerca source nei parametri delle funzioni
+                            const extractedSources = extractSourcesFromFunctions(targetBrick);
+                            if (extractedSources.length > 0) {
+                                finalSourceText = extractedSources.join(', ');
+                            }
+                        }
+                    }
+                    
+                    mappings.push({
+                        n: validMappingCounter++,
+                        target: targetPath,
+                        source: finalSourceText,
+                        transformation: transformationText,
+                        isConstant: isConstant,
+                        constantValue: constantValue,
+                        originalAnalysis: analysis // Salva l'analisi originale per le traduzioni
+                    });
+                } catch (error) {
+                    console.warn(`Errore nell'analisi del brick ${index + 1}:`, error);
+                    // Non aggiungere mapping con errori
+                }
+            });
+            
+            return mappings;
+        }
+        
+        function analyzeBrickContent(targetBrick) {
+            const sources = [];
+            const functions = [];
+            
+            // Funzione ricorsiva per analizzare tutti i brick figli
+            function analyzeBrick(brick) {
+                const type = brick.getAttribute('type');
+                const fname = brick.getAttribute('fname');
+                const path = brick.getAttribute('path');
+                
+                if (type === 'Src' && path) {
+                    sources.push(path);
+                } else if (type === 'Func' && fname) {
+                    // Estrai parametri della funzione
+                    const params = extractFunctionParams(brick);
+                    functions.push({ name: fname, params });
+                    
+                    // Per le funzioni, analizza anche i loro argomenti per trovare source
+                    const funcChildBricks = brick.querySelectorAll(':scope > arg > brick');
+                    funcChildBricks.forEach(child => analyzeBrick(child));
+                }
+                
+                // Analizza ricorsivamente i brick figli solo se non è una funzione
+                // (per le funzioni li abbiamo già analizzati sopra)
+                if (type !== 'Func') {
+                    const childBricks = brick.querySelectorAll(':scope > arg > brick');
+                    childBricks.forEach(child => analyzeBrick(child));
+                }
+            }
+            
+            // Inizia l'analisi dai brick figli del target
+            const childBricks = targetBrick.querySelectorAll(':scope > arg > brick');
+            childBricks.forEach(child => analyzeBrick(child));
+            
+            // Genera spiegazione della trasformazione
+            let transformation = '';
+            if (functions.length > 0) {
+                transformation = functions.map(func => {
+                    try {
+                        const explainer = transformationExplanations[currentLanguage][func.name];
+                        if (explainer) {
+                            return explainer(func.params);
+                        }
+                        return `Funzione: ${func.name}`;
+                    } catch (error) {
+                        console.warn('Errore nell\'analisi della funzione:', func.name, error);
+                        return `Funzione: ${func.name}`;
+                    }
+                }).join(' + ');
+            } else if (sources.length > 0) {
+                transformation = 'Mapping diretto';
+            }
+            
+            return {
+                sources,
+                functions,
+                transformation
+            };
+        }
+        
+        function extractFunctionParams(funcBrick) {
+            const params = {};
+            
+            // Estrai parametri da bindings
+            const bindings = funcBrick.querySelector('bindings');
+            if (bindings) {
+                const paramElements = bindings.querySelectorAll('param');
+                paramElements.forEach(param => {
+                    const name = param.getAttribute('name');
+                    const valueElement = param.querySelector('value');
+                    if (name && valueElement) {
+                        const value = valueElement.textContent;
+                        // Mantieni il valore anche se è vuoto (per le costanti vuote)
+                        params[name] = value !== undefined ? value : '';
+                    }
+                });
+            }
+            
+            return params;
+        }
+        
+        function extractSourcesFromFunctions(targetBrick) {
+            const sources = [];
+            
+            // Funzione ricorsiva per trovare tutti i source fields
+            function findSources(brick) {
+                const type = brick.getAttribute('type');
+                const path = brick.getAttribute('path');
+                
+                if (type === 'Src' && path) {
+                    sources.push(path);
+                }
+                
+                // Continua la ricerca nei figli
+                const childBricks = brick.querySelectorAll(':scope > arg > brick');
+                childBricks.forEach(child => findSources(child));
+            }
+            
+            // Inizia la ricerca dai figli del target
+            const childBricks = targetBrick.querySelectorAll(':scope > arg > brick');
+            childBricks.forEach(child => findSources(child));
+            
+            return sources;
+        }
+        
+        function generateTable() {
+            const outputArea = document.getElementById('outputArea');
+            const headers = translations[currentLanguage].tableHeaders;
+            
+            let html = `
+                <div class="alert alert-info">
+                    ✅ ${currentLanguage === 'en' ? translations[currentLanguage].alerts.parseSuccess + ': ' + parsedData.length + ' mappings found' : translations[currentLanguage].alerts.parseSuccess + ': ' + parsedData.length + ' mapping trovati'}
+                </div>
+                <table class="output-table">
+                    <thead>
+                        <tr>
+                            <th class="col-n">${headers.n}</th>
+                            <th class="col-target">${headers.target}</th>
+                            <th class="col-source">${headers.source}</th>
+                            <th class="col-transformation">${headers.transformation}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            
+            // Ricalcola le trasformazioni nella lingua corrente per ogni riga
+            parsedData.forEach(row => {
+                // Ricalcola la trasformazione con la lingua corrente
+                const currentTransformation = recalculateTransformation(row);
+                
+                // Determina la classe CSS per il source
+                let sourceClass = '';
+                let sourceText = row.source;
+                
+                if (row.isConstant) {
+                    sourceClass = 'constant';
+                    // Per le costanti, mostra il valore nella lingua corrente
+                    if (row.constantValue === '') {
+                        sourceText = currentLanguage === 'it' ? 'Vuoto' : 'Empty';
+                    } else {
+                        sourceText = row.constantValue;
+                    }
+                } else if (row.source.startsWith('/')) {
+                    sourceClass = 'source';
+                }
+                
+                html += `
+                    <tr>
+                        <td>${row.n}</td>
+                        <td class="path">${escapeHtml(row.target)}</td>
+                        <td class="path ${sourceClass}">${escapeHtml(sourceText)}</td>
+                        <td class="function">${escapeHtml(currentTransformation)}</td>
+                    </tr>
+                `;
+            });
+            
+            html += `
+                    </tbody>
+                </table>
+            `;
+            
+            outputArea.innerHTML = html;
+            
+            // Espandi output se ci sono molte righe
+            if (parsedData.length > 8) {
+                outputArea.classList.add('expanded');
+            } else {
+                outputArea.classList.remove('expanded');
+            }
+        }
+        
+        function recalculateTransformation(row) {
+            // Se abbiamo salvato i dati originali, ricalcola la trasformazione
+            if (row.originalAnalysis) {
+                return generateTransformationText(row.originalAnalysis);
+            }
+            // Altrimenti usa la trasformazione esistente (potrebbe non essere tradotta)
+            return row.transformation;
+        }
+        
+        function recalculateSourceForConstant(row) {
+            // Ricalcola il testo del source per le costanti nella lingua corrente
+            if (row.isConstant) {
+                if (row.constantValue === '') {
+                    return currentLanguage === 'it' ? 'Vuoto' : 'Empty';
+                } else {
+                    return row.constantValue;
+                }
+            }
+            return row.source;
+        }
+        
+        function generateTransformationText(analysis) {
+            // Genera spiegazione della trasformazione nella lingua corrente
+            let transformation = '';
+            if (analysis.functions && analysis.functions.length > 0) {
+                transformation = analysis.functions.map(func => {
+                    try {
+                        const explainer = transformationExplanations[currentLanguage][func.name];
+                        if (explainer) {
+                            return explainer(func.params);
+                        }
+                        return `Funzione: ${func.name}`;
+                    } catch (error) {
+                        console.warn('Errore nell\'analisi della funzione:', func.name, error);
+                        return `Funzione: ${func.name}`;
+                    }
+                }).join(' + ');
+            } else if (analysis.sources && analysis.sources.length > 0) {
+                transformation = currentLanguage === 'it' ? 'Mapping diretto' : 'Direct mapping';
+            }
+            
+            return transformation || (currentLanguage === 'it' ? 'Mapping diretto' : 'Direct mapping');
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        function exportToExcel() {
+            if (parsedData.length === 0) {
+                showAlert(translations[currentLanguage].alerts.noData, 'error');
+                return;
+            }
+            
+            const headers = translations[currentLanguage].tableHeaders;
+            const excelData = [
+                [headers.n, headers.target, headers.source, headers.transformation]
+            ];
+            
+            parsedData.forEach(row => {
+                // Ricalcola la trasformazione nella lingua corrente per l'export
+                const currentTransformation = recalculateTransformation(row);
+                
+                // Determina il testo del source per l'export
+                let sourceText = row.source;
+                if (row.isConstant) {
+                    if (row.constantValue === '') {
+                        sourceText = currentLanguage === 'it' ? 'Vuoto' : 'Empty';
+                    } else {
+                        sourceText = row.constantValue;
+                    }
+                }
+                
+                excelData.push([
+                    row.n,
+                    row.target,
+                    sourceText,
+                    currentTransformation
+                ]);
+            });
+            
+            const worksheet = XLSX.utils.aoa_to_sheet(excelData);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, 'Mapping');
+            
+            // Genera nome file dinamico
+            const filename = generateFilename();
+            
+            XLSX.writeFile(workbook, filename);
+            showAlert(translations[currentLanguage].alerts.exportSuccess, 'success');
+        }
+        
+        function generateFilename() {
+            const gifCode = document.getElementById('gifCode').value.trim();
+            const sistemaSender = document.getElementById('sistemaSender').value.trim();
+            const sistemaReceiver = document.getElementById('sistemaReceiver').value.trim();
+            
+            const today = new Date();
+            const dateStr = today.getFullYear() + '-' + 
+                          String(today.getMonth() + 1).padStart(2, '0') + '-' + 
+                          String(today.getDate()).padStart(2, '0');
+            
+            let filename = 'Mapping';
+            
+            if (gifCode) filename += '_' + gifCode;
+            if (sistemaSender) filename += '_' + sistemaSender;
+            if (sistemaReceiver) filename += '_' + sistemaReceiver;
+            
+            filename += '_' + dateStr + '.xlsx';
+            
+            return filename;
+        }
+        
+        function showLoading(show) {
+            const spinner = document.getElementById('loadingSpinner');
+            spinner.style.display = show ? 'block' : 'none';
+        }
+        
+        function clearAll() {
+            document.getElementById('mmapFile').value = '';
+            document.getElementById('gifCode').value = '';
+            document.getElementById('sistemaSender').value = '';
+            document.getElementById('sistemaReceiver').value = '';
+            document.getElementById('outputArea').innerHTML = `<div class="alert alert-info" id="initialMessage">${translations[currentLanguage].initialMessage}</div>`;
+            document.getElementById('exportBtn').disabled = true;
+            parsedData = [];
+            
+            const outputArea = document.getElementById('outputArea');
+            outputArea.classList.remove('expanded');
+        }
+        
+        function loadExample() {
+            // Carica valori di esempio
+            document.getElementById('gifCode').value = 'GIF1148';
+            document.getElementById('sistemaSender').value = 'SAP';
+            document.getElementById('sistemaReceiver').value = 'EDI';
+            
+            const message = currentLanguage === 'it' ? 
+                'Valori di esempio caricati! Seleziona un file .mmap per l\'analisi.' :
+                'Example values loaded! Select a .mmap file for analysis.';
+            showAlert(message, 'info');
+        }
+    </script>
+</body>
+</html>
